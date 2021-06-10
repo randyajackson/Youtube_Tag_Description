@@ -2,6 +2,7 @@ import os
 import eyed3
 import sys
 import requests
+import urllib
 
 def duration_from_seconds(s):
     """Module to get the convert Seconds to a time like format."""
@@ -15,22 +16,26 @@ def duration_from_seconds(s):
 dir = sys.argv[1] + str('\\')
 discogs = requests.get('https://api.discogs.com/releases/' + str(sys.argv[2])).json()
 
+maxTrackNumber = 0
+
 trackList = [''] * 99 
 for song in os.listdir(dir):
     if song.endswith(".mp3"):
         af = eyed3.load(dir + song)
         track = {}
         track["number"] = af.tag.track_num[0]
+        if af.tag.track_num[0] > maxTrackNumber:
+            maxTrackNumber = af.tag.track_num[0]    
         track["name"] = song[:-4]
         track["name"] = track["name"][track["name"].find('-') + 1:]
         track["length"] = duration_from_seconds(af.info.time_secs)
         track["seconds"] = af.info.time_secs
         trackList[track["number"]] = track
 
+trackList = trackList[1:maxTrackNumber]
 totalTime = 0
 print('Tracklist:')
 for x in trackList:
-    if x != '':
         print(str(x["number"]) + '  ' + str(x["name"]) + '  ' + str(duration_from_seconds(totalTime)))
         totalTime += x["seconds"]
 
@@ -59,5 +64,45 @@ print('Website: https://intrinse.net/ \n'+
 
 'Video generated with RenderTune: \n'+
 'https://www.rendertune.com')
+
+genres = []
+
+for x in discogs["genres"]:
+    x += ' full album'
+    genres.append(urllib.parse.quote(x))
+for x in discogs["styles"]:
+    x += ' full album'
+    genres.append(urllib.parse.quote(x))
+
+keyWordCounts = {}
+highestCount = 0
+
+for n in genres:
+    ytSearch = requests.get('https://www.googleapis.com/youtube/v3/search?order=date&part=snippet&q=' + n + '&maxResults=10&order=viewCount').json()
+
+    for x in ytSearch["items"]:
+        videoDetails = requests.get('https://www.googleapis.com/youtube/v3/videos?part=snippet&part=contentDetails&id=' + x["id"]["videoId"] + '').json()   
+        for y in videoDetails["items"][0]["snippet"]["tags"]:
+            if y in keyWordCounts:
+                keyWordCounts[y] = keyWordCounts.get(y) + 1
+                if keyWordCounts[y] >  highestCount:
+                    highestCount = keyWordCounts[y]
+            else:      
+                keyWordCounts[y] = 1 
+
+keyWordCounts = sorted(keyWordCounts.items(), key=lambda x: x[1])
+printString = str(highestCount) + ": "
+
+for i in reversed(keyWordCounts):
+    if i[1] == highestCount: 
+        printString += str(i[0]) + ', '
+    else:
+        print(printString + '\n')
+        highestCount -= 1
+        printString = str(highestCount) + ": " + str(i[0]) + ', '
+
+print(printString)
+        
+
 
 
