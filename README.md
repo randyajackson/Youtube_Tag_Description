@@ -1,5 +1,5 @@
 # Youtube_Tag_Description
-Script used to create a Youtube description, tags, and Instagram hashtags for video uploads.
+Script used to create tracklist timestamps, youtube description, and aggregate youtube tags for video uploads.
 
 Example output:
 
