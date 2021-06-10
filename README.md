@@ -2,6 +2,7 @@
 Script used to create a Youtube description, tags, and Instagram hashtags for video uploads.
 
 Example output:
+
 python desc_tags.py "C:\Albums\Gregory Simon - Himalayan Afternoon\Tracks" 3222884
 
 
