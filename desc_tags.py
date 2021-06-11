@@ -3,6 +3,7 @@ import eyed3
 import sys
 import requests
 import urllib
+from bs4 import BeautifulSoup
 
 def duration_from_seconds(s):
     """Module to get the convert Seconds to a time like format."""
@@ -63,32 +64,47 @@ print('Website: https://intrinse.net/ \n'+
 'Email: intrinse.mail@gmail.com \n\n'+
 
 'Video generated with RenderTune: \n'+
-'https://www.rendertune.com')
+'https://www.rendertune.com \n')
 
-genres = []
+searches = []
 
 for x in discogs["genres"]:
     x += ' full album'
-    genres.append(urllib.parse.quote(x))
+    searches.append(urllib.parse.quote(x))
 for x in discogs["styles"]:
     x += ' full album'
-    genres.append(urllib.parse.quote(x))
+    searches.append(urllib.parse.quote(x))
+
+page = 1
+relatedArtists = requests.get('https://www.discogs.com/release/recs/' + str(sys.argv[2]) + '?type=release&page=' + str(page) + '&ev=')
+
+while relatedArtists.text.strip() != '':
+    soup = BeautifulSoup(relatedArtists.content, 'html.parser')
+    for a in soup.find_all('a'):
+        if(a['href'][0:7] == '/artist'):
+            searches.append(urllib.parse.quote(a.contents[0] + ' full album'))
+    page += 1
+    relatedArtists = requests.get('https://www.discogs.com/release/recs/' + str(sys.argv[2]) + '?type=release&page=' + str(page) + '&ev=')
+
 
 keyWordCounts = {}
 highestCount = 0
 
-for n in genres:
-    ytSearch = requests.get('https://www.googleapis.com/youtube/v3/search?order=date&part=snippet&q=' + n + '&maxResults=10&order=viewCount').json()
+for n in searches:
+    ytSearch = requests.get('https://www.googleapis.com/youtube/v3/search?order=date&part=snippet&q=' + n + '&maxResults=10&order=viewCount&key=').json()
+    if "items" in ytSearch:
+        for x in ytSearch["items"]:
+            if "videoId" in x["id"]:
+                videoDetails = requests.get('https://www.googleapis.com/youtube/v3/videos?part=snippet&part=contentDetails&id=' + x["id"]["videoId"] + '&key=').json() 
 
-    for x in ytSearch["items"]:
-        videoDetails = requests.get('https://www.googleapis.com/youtube/v3/videos?part=snippet&part=contentDetails&id=' + x["id"]["videoId"] + '').json()   
-        for y in videoDetails["items"][0]["snippet"]["tags"]:
-            if y in keyWordCounts:
-                keyWordCounts[y] = keyWordCounts.get(y) + 1
-                if keyWordCounts[y] >  highestCount:
-                    highestCount = keyWordCounts[y]
-            else:      
-                keyWordCounts[y] = 1 
+                if "tags" in videoDetails["items"][0]["snippet"]:
+                    for y in videoDetails["items"][0]["snippet"]["tags"]:
+                        if y in keyWordCounts:
+                            keyWordCounts[y] = keyWordCounts.get(y) + 1
+                            if keyWordCounts[y] >  highestCount:
+                                highestCount = keyWordCounts[y]
+                        else:      
+                            keyWordCounts[y] = 1 
 
 keyWordCounts = sorted(keyWordCounts.items(), key=lambda x: x[1])
 printString = str(highestCount) + ": "
